@@ -2,14 +2,11 @@
 set -xeou pipefail
 
 GOPATH=$(go env GOPATH)
-REPO_ROOT=$GOPATH/src/kubedb.dev/percona-xtradb
-
-source "$REPO_ROOT/hack/libbuild/common/lib.sh"
-source "$REPO_ROOT/hack/libbuild/common/kubedb_image.sh"
+REPO_ROOT=$GOPATH/src/kubedb.dev/proxysql
 
 DOCKER_REGISTRY=${DOCKER_REGISTRY:-kubedb}
 
-IMG="proxysql-pxc"
+IMG="proxysql"
 
 DB_VERSION="5.7"
 TAG="$DB_VERSION"
@@ -24,4 +21,14 @@ build() {
   popd
 }
 
-binary_repo $@
+push() {
+  pushd "$REPO_ROOT/hack/docker/proxysql/$DB_VERSION"
+
+  local cmd="docker push $DOCKER_REGISTRY/$IMG:$TAG"
+  echo $cmd
+  $cmd
+
+  popd
+}
+
+"$@"
