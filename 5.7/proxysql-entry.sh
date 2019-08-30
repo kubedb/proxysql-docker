@@ -36,9 +36,10 @@ function override_proxysql_config_and_restart() {
   if [ -f ${CUSTOM_CONFIG} ]; then
     killall -15 proxysql
     cmd="proxysql -c /etc/custom-proxysql.cnf --reload -f $CMDARG"
-    if [[ "$run_in_background" -eq "true" ]]; then
+    if [[ "$run_in_background" == "true" ]]; then
       cmd="$cmd &"
     fi
+    log "INFO" ">>>>>>>>> $cmd"
     $cmd
 
     pid=$!
