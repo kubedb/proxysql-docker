@@ -39,7 +39,6 @@ function override_proxysql_config_and_restart() {
     if [[ "$run_in_background" == "true" ]]; then
       cmd="$cmd &"
     fi
-    log "INFO" ">>>>>>>>> $cmd"
     $cmd
 
     pid=$!
@@ -62,10 +61,10 @@ if [ $MONITOR_CONFIG_CHANGE ]; then
 
   override_proxysql_config_and_restart true
 
-  log "INFO" "Configuring proxysql.."
+  log "INFO" "Configuring proxysql ..."
   /usr/bin/configure-proxysql.sh
 
-  log "INFO" "Monitoring $CONFIG for changes.."
+  log "INFO" "Monitoring $CONFIG for changes ..."
   inotifywait -e modify,move,create,delete -m --timefmt '%d/%m/%y %H:%M' --format '%T' ${CONFIG} |
     while read date time; do
       newcksum=$(cksum ${CONFIG})
@@ -74,7 +73,7 @@ if [ $MONITOR_CONFIG_CHANGE ]; then
         echo "At ${time} on ${date}, ${CONFIG} update detected."
         echo "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
         oldcksum=$newcksum
-        log "INFO" "Reloading ProxySQL.."
+        log "INFO" "Reloading ProxySQL ..."
         killall -15 proxysql
         proxysql --initial --reload -f $CMDARG &
 
@@ -89,7 +88,7 @@ pid=$!
 
 override_proxysql_config_and_restart true
 
-log "INFO" "Configuring proxysql.."
+log "INFO" "Configuring proxysql ..."
 /usr/bin/configure-proxysql.sh
 
 log "INFO" "Waiting for proxysql ..."

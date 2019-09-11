@@ -107,10 +107,9 @@ if [[ "$LOAD_BALANCE_MODE" == "GroupReplication" ]]; then
 SELECT MEMBER_HOST FROM performance_schema.replication_group_members
                           INNER JOIN performance_schema.global_status ON (MEMBER_ID = VARIABLE_VALUE)
 WHERE VARIABLE_NAME='group_replication_primary_member';
-" \
-  $opt)
+" )
 
-  echo ">>>>>>> primary=$primary"
+  log "INFO" "Current primary member of the group is $primary"
   additional_sys_query=$(cat /addition_to_sys.sql)
   mysql_exec \
   root \
