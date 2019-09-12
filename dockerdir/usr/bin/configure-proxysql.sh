@@ -45,19 +45,19 @@ function wait_for_mysql() {
   local server="$3"
   local port="$4"
 
-  log "INFO" "Waiting for host $server to be online..."
+  log "INFO" "Waiting for host $server to be online ..."
   for i in {900..0}; do
     out=$(mysql_exec ${user} ${pass} ${server} ${port} "select 1;")
     if [[ "$out" == "1" ]]; then
       break
     fi
 
-    log "WARNING" "out is ---'$out'--- MySQL is not up yet... sleeping ..."
+    log "WARNING" "out is ---'$out'--- MySQL is not up yet ... sleeping ..."
     sleep 1
   done
 
   if [[ "$i" == "0" ]]; then
-    log "ERROR" "Server ${server} start failed..."
+    log "ERROR" "Server ${server} start failed ..."
     exit 1
   fi
 }
