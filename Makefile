@@ -12,3 +12,7 @@ push: container
 .PHONY: container
 container:
 	docker build --pull -t $(IMAGE):$(TAG) .
+
+.PHONY: version
+version:
+	@echo ::set-output name=version::$(TAG)
