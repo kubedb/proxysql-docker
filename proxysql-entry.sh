@@ -16,7 +16,7 @@ script_name=${0##*/}
 declare -i pid
 
 # custom config file location for proxysql
-CUSTOM_CONFIG="/etc/custom-proxysql.cnf"
+CUSTOM_CONFIG="/etc/custom-config/custom-proxysql.cnf"
 
 function timestamp() {
   date +"%Y/%m/%d %T"
@@ -35,13 +35,16 @@ function override_proxysql_config_and_restart() {
 
   if [ -f ${CUSTOM_CONFIG} ]; then
     killall -15 proxysql
-    cmd="proxysql -c /etc/custom-proxysql.cnf --reload -f $CMDARG"
+    cmd="proxysql -c $CUSTOM_CONFIG --reload -f $CMDARG"
+    log "" $cmd
     if [[ "$run_in_background" == "true" ]]; then
-      cmd="$cmd &"
+      log "INFO" "Applying custom config using cmd '$cmd &'"
+      $cmd &
+      pid=$!
+    else
+      log "INFO" "Applying custom config using cmd '$cmd'"
+      $cmd
     fi
-    $cmd
-
-    pid=$!
   fi
 }
 
