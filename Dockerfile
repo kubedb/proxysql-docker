@@ -23,5 +23,7 @@ COPY addition_to_sys.sql /addition_to_sys.sql
 
 EXPOSE 6032 6033 6080
 
-ENTRYPOINT ["/entrypoint.sh"]
-CMD [""]
+COPY tini /tini
+
+ENTRYPOINT ["/tini","-g","--"]
+CMD ["/entrypoint.sh"]
