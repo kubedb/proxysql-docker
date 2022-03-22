@@ -16,7 +16,8 @@ script_name=${0##*/}
 declare -i pid
 
 # custom config file location for proxysql
-CUSTOM_CONFIG="/etc/custom-proxysql.cnf"
+CUSTOM_CONFIG="/etc/custom-config/custom-proxysql.cnf"
+export MONITOR_CONFIG_CHANGE=true
 
 function timestamp() {
   date +"%Y/%m/%d %T"
@@ -30,57 +31,57 @@ function log() {
 
 # apply the user provided custom config from /etc/custom-proxysql.cng
 # to override the config from /etc/proxysql.cnf
-#function override_proxysql_config_and_restart() {
-#  run_in_background=$1
-#
-#  if [ -f ${CUSTOM_CONFIG} ]; then
-#    killall -15 proxysql
-#    cmd="proxysql -c /etc/custom-proxysql.cnf --reload -f $CMDARG"
-#    if [[ "$run_in_background" == "true" ]]; then
-#      cmd="$cmd &"
-#    fi
-#    $cmd
-#
-#    pid=$!
-#  fi
-#}
+function override_proxysql_config_and_restart() {
+  run_in_background=$1
+
+  if [ -f ${CUSTOM_CONFIG} ]; then
+    killall -15 proxysql
+    cmd="proxysql -c /etc/custom-config/custom-proxysql.cnf --reload -f $CMDARG"
+    if [[ "$run_in_background" == "true" ]]; then
+      cmd="$cmd &"
+    fi
+    $cmd
+
+    pid=$!
+  fi
+}
 
 # If command has arguments, prepend proxysql
 if [ "${1:0:1}" = '-' ]; then
   CMDARG="$@"
 fi
 
-#if [ $MONITOR_CONFIG_CHANGE ]; then
-#
-#  log "INFO" "Env MONITOR_CONFIG_CHANGE=true"
-#  CONFIG=/etc/proxysql.cnf
-#  oldcksum=$(cksum ${CONFIG})
-#
-#  # Start ProxySQL in the background
-#  proxysql --reload -f $CMDARG &
-#
-#  override_proxysql_config_and_restart true
-#
-#  log "INFO" "Configuring proxysql ..."
-#  /usr/bin/configure-proxysql.sh
-#
-#  log "INFO" "Monitoring $CONFIG for changes ..."
-#  inotifywait -e modify,move,create,delete -m --timefmt '%d/%m/%y %H:%M' --format '%T' ${CONFIG} |
-#    while read date time; do
-#      newcksum=$(cksum ${CONFIG})
-#      if [ "$newcksum" != "$oldcksum" ]; then
-#        echo "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-#        echo "At ${time} on ${date}, ${CONFIG} update detected."
-#        echo "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-#        oldcksum=$newcksum
-#        log "INFO" "Reloading ProxySQL ..."
-#        killall -15 proxysql
-#        proxysql --initial --reload -f $CMDARG &
-#
-##        override_proxysql_config_and_restart false
-#      fi
-#    done
-#fi
+if [ $MONITOR_CONFIG_CHANGE ]; then
+
+  log "INFO" "Env MONITOR_CONFIG_CHANGE=true"
+  CONFIG=/etc/proxysql.cnf
+  oldcksum=$(cksum ${CONFIG})
+
+  # Start ProxySQL in the background
+  proxysql --reload -f $CMDARG &
+
+  override_proxysql_config_and_restart true
+
+  log "INFO" "Configuring proxysql ..."
+  /usr/bin/configure-proxysql.sh
+
+  log "INFO" "Monitoring $CONFIG for changes ..."
+  inotifywait -e modify,move,create,delete -m --timefmt '%d/%m/%y %H:%M' --format '%T' ${CONFIG} |
+    while read date time; do
+      newcksum=$(cksum ${CONFIG})
+      if [ "$newcksum" != "$oldcksum" ]; then
+        echo "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+        echo "At ${time} on ${date}, ${CONFIG} update detected."
+        echo "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+        oldcksum=$newcksum
+        log "INFO" "Reloading ProxySQL ..."
+        killall -15 proxysql
+        proxysql --initial --reload -f $CMDARG &
+
+        override_proxysql_config_and_restart false
+      fi
+    done
+fi
 
 # Start ProxySQL with PID 1
 exec proxysql -f $CMDARG &
