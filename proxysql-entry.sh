@@ -29,9 +29,9 @@ function log() {
   echo "$(timestamp) [$script_name] [$log_type] $msg"
 }
 
-if [ $FETCH_CUSTOM_CONFIG ]; then
-  echo $(cat /etc/custom-config/custom-proxysql.cnf) > /etc/proxysql.cnf
-fi
+#if [ $FETCH_CUSTOM_CONFIG ]; then
+##  echo $(cat /etc/custom-config/custom-proxysql.cnf) > /etc/proxysql.cnf
+#fi
 
 # apply the user provided custom config from /etc/custom-proxysql.cng
 # to override the config from /etc/proxysql.cnf

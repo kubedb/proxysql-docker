@@ -71,54 +71,30 @@ first_host=${BACKEND_SERVERS[0]}
 
 log "INFO" "Provided peers are ${BACKEND_SERVERS[*]}"
 
-wait_for_mysql \
-  root \
-  $MYSQL_ROOT_PASSWORD \
-  $first_host \
-  3306
+#wait_for_mysql root $MYSQL_ROOT_PASSWORD $first_host 3306
 
-mysql_exec \
-  root \
-  $MYSQL_ROOT_PASSWORD \
-  $first_host \
-  3306 \
-  "
-CREATE USER '$MYSQL_PROXY_USER'@'%' IDENTIFIED BY '$MYSQL_PROXY_PASSWORD';
-  " \
-  $opt
-mysql_exec \
-  root \
-  $MYSQL_ROOT_PASSWORD \
-  $first_host \
-  3306 \
-  "
-GRANT ALL ON *.* TO '$MYSQL_PROXY_USER'@'%';
-FLUSH PRIVILEGES ;
-  " \
-  $opt
-echo "done"
-if [[ "$LOAD_BALANCE_MODE" == "GroupReplication" ]]; then
-  primary=$(mysql_exec \
-  root \
-  $MYSQL_ROOT_PASSWORD \
-  $first_host \
-  3306 \
-  "
-SELECT MEMBER_HOST FROM performance_schema.replication_group_members
-                          INNER JOIN performance_schema.global_status ON (MEMBER_ID = VARIABLE_VALUE)
-WHERE VARIABLE_NAME='group_replication_primary_member';
-" )
+#mysql_exec root $MYSQL_ROOT_PASSWORD $first_host 3306  "CREATE USER '$MYSQL_PROXY_USER'@'%' IDENTIFIED BY '$MYSQL_PROXY_PASSWORD';"  $opt
 
-  log "INFO" "Current primary member of the group is $primary"
-  additional_sys_query=$(cat /addition_to_sys.sql)
-  mysql_exec \
-  root \
-  $MYSQL_ROOT_PASSWORD \
-  $primary \
-  3306 \
-  "$additional_sys_query" \
-  $opt
-fi
+#mysql_exec root  $MYSQL_ROOT_PASSWORD $first_host 3306 \
+#  "
+#GRANT ALL ON *.* TO '$MYSQL_PROXY_USER'@'%';
+#FLUSH PRIVILEGES ;
+#  " \
+#  $opt
+
+#echo "done"
+#if [[ "$LOAD_BALANCE_MODE" == "GroupReplication" ]]; then
+#  primary=$(mysql_exec root $MYSQL_ROOT_PASSWORD $first_host 3306 \
+#  "
+#SELECT MEMBER_HOST FROM performance_schema.replication_group_members
+#                          INNER JOIN performance_schema.global_status ON (MEMBER_ID = VARIABLE_VALUE)
+#WHERE VARIABLE_NAME='group_replication_primary_member';
+#" )
+#
+#  log "INFO" "Current primary member of the group is $primary"
+#  additional_sys_query=$(cat /addition_to_sys.sql)
+#  mysql_exec root $MYSQL_ROOT_PASSWORD $primary 3306 "$additional_sys_query" $opt
+#fi
 
 # Now prepare sql for proxysql
 # Here, we configure read and write access for two host groups with id 10 and 20.
@@ -150,9 +126,7 @@ function get_servers_sql() {
   local sql=""
   for server in "${BACKEND_SERVERS[@]}"; do
     sql="$sql
-REPLACE INTO mysql_servers
-(hostgroup_id, hostname, port, weight)
-VALUES (2,'$server',3306,100);
+REPLACE INTO mysql_servers(hostgroup_id, hostname, port, weight,use_ssl) VALUES (2,'$server',3306,100,1);
 "
   done
 
@@ -166,28 +140,19 @@ SAVE MYSQL SERVERS TO DISK;
 
 function get_users_sql() {
   local sql="
-UPDATE global_variables
-SET variable_value='$MYSQL_PROXY_USER'
-WHERE variable_name='mysql-monitor_username';
-UPDATE global_variables
-SET variable_value='$MYSQL_PROXY_PASSWORD'
-WHERE variable_name='mysql-monitor_password';
+UPDATE global_variables SET variable_value='monitor' WHERE variable_name='mysql-monitor_username';
+UPDATE global_variables SET variable_value='qw' WHERE variable_name='mysql-monitor_password';
 
 LOAD MYSQL VARIABLES TO RUNTIME;
 SAVE MYSQL VARIABLES TO DISK;
 
-REPLACE INTO mysql_users
-(username, password, active, default_hostgroup, max_connections)
-VALUES ('root', '$MYSQL_ROOT_PASSWORD', 1, 2, 200);
-REPLACE INTO mysql_users
-(username, password, active, default_hostgroup, max_connections)
-VALUES ('$MYSQL_PROXY_USER', '$MYSQL_PROXY_PASSWORD', 1, 2, 200);
+REPLACE INTO mysql_users(username, password, active, default_hostgroup, max_connections) VALUES ('root', '$MYSQL_ROOT_PASSWORD', 1, 2, 200);
+REPLACE INTO mysql_users(username, password, active, default_hostgroup, max_connections) VALUES ('$MYSQL_PROXY_USER', '$MYSQL_PROXY_PASSWORD', 1, 2, 200);
 
 LOAD MYSQL USERS TO RUNTIME;
 SAVE MYSQL USERS TO DISK;
 
-UPDATE mysql_users
-SET default_hostgroup=2;
+UPDATE mysql_users SET default_hostgroup=2;
 
 LOAD MYSQL USERS TO RUNTIME;
 SAVE MYSQL USERS TO DISK;
@@ -198,12 +163,7 @@ SAVE MYSQL USERS TO DISK;
 
 function get_queries_sql() {
   local sql="
-REPLACE INTO mysql_query_rules
-(rule_id,active,match_digest,destination_hostgroup,apply)
-VALUES
-(1,1,'^SELECT.*FOR UPDATE$',2,1),
-(2,1,'^SELECT',3,1),
-(3,1,'.*',2,1);
+REPLACE INTO mysql_query_rules(rule_id,active,match_digest,destination_hostgroup,apply) VALUES(1,1,'^SELECT.*FOR UPDATE$',2,1), (2,1,'^SELECT',3,1), (3,1,'.*',2,1);
 
 LOAD MYSQL QUERY RULES TO RUNTIME;
 SAVE MYSQL QUERY RULES TO DISK;
@@ -236,6 +196,7 @@ $PROXYSQL_ADMIN_PASSWORD \
 127.0.0.1 \
 6032 \
 "$cleanup_sql $hostgroups_sql $servers_sql $users_sql $queries_sql" \
+#"$cleanup_sql $hostgroups_sql $users_sql $queries_sql" \
 $opt
 
 log "INFO" "All done!"
@@ -245,8 +206,7 @@ log "INFO" "What have set up"
 verification_sql="
 select * from runtime_mysql_servers;
 
-select hostgroup, srv_host, status, ConnUsed, MaxConnUsed, Queries
-from stats.stats_mysql_connection_pool order by srv_host;
+select hostgroup, srv_host, status, ConnUsed, MaxConnUsed, Queries from stats.stats_mysql_connection_pool order by srv_host;
 
 select * from mysql_servers;
 

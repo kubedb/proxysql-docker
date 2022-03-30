@@ -30,7 +30,7 @@ mysql_variables=
     interfaces="0.0.0.0:6033;/tmp/proxysql.sock"
     default_schema="information_schema"
     stacksize=1048576
-    server_version="5.1.30"
+    server_version="8.0.27"
     connect_timeout_server=10000
     monitor_history=60000
     monitor_connect_interval=200000
@@ -40,10 +40,19 @@ mysql_variables=
     commands_stats=true
     sessions_sort=true
     monitor_username="proxysql"
-    monitor_password="proxysqlpassw0rd"
+    monitor_password="pass"
     monitor_galera_healthcheck_interval=2000
     monitor_galera_healthcheck_timeout=800
+    ssl_p2s_cert="/var/lib/certs/tls.crt"
+    ssl_p2s_key="/var/lib/certs/tls.key"
+    ssl_p2s_ca="/var/lib/certs/ca.crt"
 }
 
+mysql_servers =
+(
+    { address="my-group-tls-0.my-group-tls-pods.demo" , port=3306 , hostgroup=2, max_connections=100 , use_ssl=1},
+    { address="my-group-tls-1.my-group-tls-pods.demo" , port=3306 , hostgroup=2, max_connections=100 , use_ssl=1},
+    { address="my-group-tls-2.my-group-tls-pods.demo" , port=3306 , hostgroup=2, max_connections=100 , use_ssl=1},
+)
 
 
