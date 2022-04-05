@@ -22,6 +22,7 @@ log "" "From $script_name"
 opt=" -vvv -f "
 TIMEOUT="10" # 10 sec timeout to wait for server
 
+
 if [[ -z "${PROXYSQL_ADMIN_USER}" ]]; then
   export PROXYSQL_ADMIN_USER="admin"
   export PROXYSQL_ADMIN_PASSWORD="admin"
@@ -36,7 +37,14 @@ function mysql_exec() {
   local port="$4"
   local query="$5"
   local exec_opt="$6"
-  mysql $exec_opt --user=${user} --password=${pass} --host=${server} -P${port} -NBe "${query}"
+  pass_ssl=""
+  if [ $BACKEND_TLS_ENABLED == "true" ]; then
+    if [ $port == 3306 ]; then
+      pass_ssl="--ssl-ca=/var/lib/certs/ca.crt"
+    fi
+  fi
+#  echo ${pass_ssl}
+  mysql $exec_opt ${pass_ssl} --user=${user} --password=${pass} --host=${server} -P${port} -NBe "${query}"
 }
 
 function wait_for_mysql() {
@@ -71,30 +79,38 @@ first_host=${BACKEND_SERVERS[0]}
 
 log "INFO" "Provided peers are ${BACKEND_SERVERS[*]}"
 
-#wait_for_mysql root $MYSQL_ROOT_PASSWORD $first_host 3306
+wait_for_mysql root $MYSQL_ROOT_PASSWORD $first_host 3306
 
-#mysql_exec root $MYSQL_ROOT_PASSWORD $first_host 3306  "CREATE USER '$MYSQL_PROXY_USER'@'%' IDENTIFIED BY '$MYSQL_PROXY_PASSWORD';"  $opt
+if [ $BACKEND_TLS_ENABLED == "true" ]; then
+  mysql_exec root $MYSQL_ROOT_PASSWORD $first_host 3306  "CREATE USER '$MYSQL_PROXY_USER'@'%' IDENTIFIED BY '$MYSQL_PROXY_PASSWORD' REQUIRE SSL;"  $opt
+else
+  mysql_exec root $MYSQL_ROOT_PASSWORD $first_host 3306  "CREATE USER '$MYSQL_PROXY_USER'@'%' IDENTIFIED BY '$MYSQL_PROXY_PASSWORD';"  $opt
+fi
 
-#mysql_exec root  $MYSQL_ROOT_PASSWORD $first_host 3306 \
-#  "
-#GRANT ALL ON *.* TO '$MYSQL_PROXY_USER'@'%';
-#FLUSH PRIVILEGES ;
-#  " \
-#  $opt
 
-#echo "done"
-#if [[ "$LOAD_BALANCE_MODE" == "GroupReplication" ]]; then
-#  primary=$(mysql_exec root $MYSQL_ROOT_PASSWORD $first_host 3306 \
-#  "
-#SELECT MEMBER_HOST FROM performance_schema.replication_group_members
-#                          INNER JOIN performance_schema.global_status ON (MEMBER_ID = VARIABLE_VALUE)
-#WHERE VARIABLE_NAME='group_replication_primary_member';
-#" )
-#
-#  log "INFO" "Current primary member of the group is $primary"
-#  additional_sys_query=$(cat /addition_to_sys.sql)
-#  mysql_exec root $MYSQL_ROOT_PASSWORD $primary 3306 "$additional_sys_query" $opt
-#fi
+mysql_exec root  $MYSQL_ROOT_PASSWORD $first_host 3306 \
+  "
+GRANT ALL PRIVILEGES ON *.* TO '$MYSQL_PROXY_USER'@'%';
+FLUSH PRIVILEGES ;
+  " \
+  $opt
+
+echo "done"
+if [[ "$LOAD_BALANCE_MODE" == "GroupReplication" ]]; then
+  primary=$(mysql_exec root $MYSQL_ROOT_PASSWORD $first_host 3306 \
+  "
+SELECT MEMBER_HOST FROM performance_schema.replication_group_members
+                          INNER JOIN performance_schema.global_status ON (MEMBER_ID = VARIABLE_VALUE)
+WHERE VARIABLE_NAME='group_replication_primary_member';
+" )
+
+  log "INFO" "Current primary member of the group is $primary"
+  additional_sys_query=$(cat /addition_to_sys_v5.sql)
+  if [[ $MYSQL_VERSION == "8"* ]]; then
+    additional_sys_query=$(cat /addition_to_sys_v8.sql)
+  fi
+  mysql_exec root $MYSQL_ROOT_PASSWORD $primary 3306 "$additional_sys_query" $opt
+fi
 
 # Now prepare sql for proxysql
 # Here, we configure read and write access for two host groups with id 10 and 20.
@@ -126,9 +142,15 @@ function get_servers_sql() {
   local sql=""
   for server in "${BACKEND_SERVERS[@]}"; do
     sql="$sql
-REPLACE INTO mysql_servers(hostgroup_id, hostname, port, weight,use_ssl) VALUES (2,'$server',3306,100,1);
+REPLACE INTO mysql_servers(hostgroup_id, hostname, port, weight) VALUES (2,'$server',3306,100);
 "
   done
+
+  if [ $BACKEND_TLS_ENABLED == "true" ]; then
+    sql="$sql
+UPDATE mysql_servers SET use_ssl=1 WHERE port=3306;
+"
+  fi
 
   sql="$sql
 LOAD MYSQL SERVERS TO RUNTIME;
@@ -140,8 +162,8 @@ SAVE MYSQL SERVERS TO DISK;
 
 function get_users_sql() {
   local sql="
-UPDATE global_variables SET variable_value='monitor' WHERE variable_name='mysql-monitor_username';
-UPDATE global_variables SET variable_value='qw' WHERE variable_name='mysql-monitor_password';
+UPDATE global_variables SET variable_value='$MYSQL_PROXY_USER' WHERE variable_name='mysql-monitor_username';
+UPDATE global_variables SET variable_value='$MYSQL_PROXY_PASSWORD' WHERE variable_name='mysql-monitor_password';
 
 LOAD MYSQL VARIABLES TO RUNTIME;
 SAVE MYSQL VARIABLES TO DISK;
@@ -196,7 +218,6 @@ $PROXYSQL_ADMIN_PASSWORD \
 127.0.0.1 \
 6032 \
 "$cleanup_sql $hostgroups_sql $servers_sql $users_sql $queries_sql" \
-#"$cleanup_sql $hostgroups_sql $users_sql $queries_sql" \
 $opt
 
 log "INFO" "All done!"

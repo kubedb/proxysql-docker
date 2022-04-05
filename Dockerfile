@@ -19,7 +19,8 @@ RUN chmod +x /entrypoint.sh
 COPY dockerdir /
 RUN chmod a+x /usr/bin/configure-proxysql.sh
 
-COPY addition_to_sys.sql /addition_to_sys.sql
+COPY addition_to_sys_v5.sql /addition_to_sys_v5.sql
+COPY addition_to_sys_v8.sql /addition_to_sys_v8.sql
 
 EXPOSE 6032 6033 6080
 

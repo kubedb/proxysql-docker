@@ -48,11 +48,5 @@ mysql_variables=
     ssl_p2s_ca="/var/lib/certs/ca.crt"
 }
 
-mysql_servers =
-(
-    { address="my-group-tls-0.my-group-tls-pods.demo" , port=3306 , hostgroup=2, max_connections=100 , use_ssl=1},
-    { address="my-group-tls-1.my-group-tls-pods.demo" , port=3306 , hostgroup=2, max_connections=100 , use_ssl=1},
-    { address="my-group-tls-2.my-group-tls-pods.demo" , port=3306 , hostgroup=2, max_connections=100 , use_ssl=1},
-)
 
 
