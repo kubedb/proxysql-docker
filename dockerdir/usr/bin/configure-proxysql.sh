@@ -43,7 +43,6 @@ function mysql_exec() {
       pass_ssl="--ssl-ca=/var/lib/certs/ca.crt"
     fi
   fi
-#  echo ${pass_ssl}
   mysql $exec_opt ${pass_ssl} --user=${user} --password=${pass} --host=${server} -P${port} -NBe "${query}"
 }
 
@@ -186,7 +185,6 @@ SAVE MYSQL USERS TO DISK;
 function get_queries_sql() {
   local sql="
 REPLACE INTO mysql_query_rules(rule_id,active,match_digest,destination_hostgroup,apply) VALUES(1,1,'^SELECT.*FOR UPDATE$',2,1), (2,1,'^SELECT',3,1), (3,1,'.*',2,1);
-
 LOAD MYSQL QUERY RULES TO RUNTIME;
 SAVE MYSQL QUERY RULES TO DISK;
 "
@@ -207,7 +205,8 @@ $servers_sql
 
 $users_sql
 
-$queries_sql"
+$queries_sql
+"
 
 # wait for proxysql process to be run
 wait_for_mysql admin admin 127.0.0.1 6032
@@ -287,3 +286,10 @@ $PROXYSQL_ADMIN_PASSWORD \
 6032 \
 "$verification_sql" \
 $opt
+
+if [ $FRONTEND_TLS_ENABLED == "true" ]; then
+  mysql -uadmin -padmin -h127.0.0.1 -P6032 -NBe "
+set mysql-have_ssl='true';
+LOAD MYSQL VARIABLES TO RUNTIME;
+SAVE MYSQL VARIABLES TO DISK;"
+fi
