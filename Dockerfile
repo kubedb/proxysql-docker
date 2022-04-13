@@ -1,30 +1,30 @@
-FROM debian:10
+FROM alpine
 
-ENV VERSION 2.0.7
+ARG TARGETOS
+ARG TARGETARCH
 
-RUN apt-get update && \
-    apt-get install -y wget default-mysql-client inotify-tools procps && \
-    wget https://github.com/sysown/proxysql/releases/download/v${VERSION}/proxysql_${VERSION}-debian10_amd64.deb -O /opt/proxysql_${VERSION}-debian10_amd64.deb && \
-    dpkg -i /opt/proxysql_${VERSION}-debian10_amd64.deb && \
-    rm -f /opt/proxysql_${VERSION}-debian10_amd64.deb && \
-    rm -rf /var/lib/apt/lists/* \
+RUN set -x \
+    && apk add --update ca-certificates curl
 
-VOLUME /var/lib/proxysql
+RUN curl -fsSL -o tini https://github.com/kubedb/tini/releases/download/v0.20.0/tini-static-${TARGETARCH} \
+    && chmod +x tini
 
-ADD proxysql.cnf /etc/proxysql.cnf
 
-COPY proxysql-entry.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
 
-COPY dockerdir /
-RUN chmod a+x /usr/bin/configure-proxysql.sh
+FROM {PROXYSQL_IMAGE}
 
-COPY addition_to_sys_v5.sql /addition_to_sys_v5.sql
-COPY addition_to_sys_v8.sql /addition_to_sys_v8.sql
+LABEL org.opencontainers.image.source https://github.com/kubedb/proxysql-init-docker
 
-EXPOSE 6032 6033 6080
+ENV DEBIAN_FRONTEND noninteractive
+ENV DEBCONF_NONINTERACTIVE_SEEN true
 
-COPY tini /tini
+RUN set -x \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends apt-transport-https ca-certificates default-mysql-client \
+  && apt-get purge -y --auto-remove ca-certificates \
+  && rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /tmp/*
 
-ENTRYPOINT ["/tini","-g","--"]
-CMD ["/entrypoint.sh"]
+COPY proxysql.cnf proxysql.cnf
+COPY scripts      scripts
+COPY sql          sql
+COPY --from=0 /tini /tmp/scripts/tini
