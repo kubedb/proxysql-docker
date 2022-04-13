@@ -102,9 +102,9 @@ WHERE VARIABLE_NAME='group_replication_primary_member';
 ")
 
     log "INFO" "Current primary member of the group is $primary"
-    additional_sys_query=$(cat /addition_to_sys_v5.sql)
+    additional_sys_query=$(cat /sql/addition_to_sys_v5.sql)
     if [[ $MYSQL_VERSION == "8"* ]]; then
-        additional_sys_query=$(cat /addition_to_sys_v8.sql)
+        additional_sys_query=$(cat /sql/addition_to_sys_v8.sql)
     fi
     mysql_exec root $MYSQL_ROOT_PASSWORD $primary 3306 "$additional_sys_query" $opt
 fi

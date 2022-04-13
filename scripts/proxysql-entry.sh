@@ -37,7 +37,7 @@ exec proxysql -f $CMDARG &
 pid=$!
 
 log "INFO" "Configuring proxysql ..."
-/usr/bin/configure-proxysql.sh
+/scripts/configure-proxysql.sh
 
 log "INFO" "Waiting for proxysql ..."
 wait $pid
