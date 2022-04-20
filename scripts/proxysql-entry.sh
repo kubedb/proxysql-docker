@@ -8,9 +8,9 @@ script_name=${0##*/}
 declare -i pid
 
 if [ $FRONTEND_TLS_ENABLED == "true" ]; then
-    cp /var/lib/frontend/ca.crt /var/lib/proxysql/proxysql-ca.pem
-    cp /var/lib/frontend/tls.crt /var/lib/proxysql/proxysql-cert.pem
-    cp /var/lib/frontend/tls.key /var/lib/proxysql/proxysql-key.pem
+    cp /var/lib/frontend/server/ca.crt /var/lib/proxysql/proxysql-ca.pem
+    cp /var/lib/frontend/server/tls.crt /var/lib/proxysql/proxysql-cert.pem
+    cp /var/lib/frontend/server/tls.key /var/lib/proxysql/proxysql-key.pem
 fi
 
 function timestamp() {
