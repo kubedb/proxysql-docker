@@ -291,3 +291,40 @@ set mysql-have_ssl='true';
 LOAD MYSQL VARIABLES TO RUNTIME;
 SAVE MYSQL VARIABLES TO DISK;"
 fi
+
+
+export PRE_CLUSTER_USER=$(mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "select variable_value from global_variables where variable_name='admin-cluster_username';")
+
+IFS=';' read -ra ALL_CLUSTER_USERS <<<"$PRE_CLUSTER_USER"
+len=${#ALL_CLUSTER_USERS[@]}
+CURRENT_USER_FOUND="false";
+for (( i=0; i<$len; i++ ));
+do
+    if [[ "${ALL_CLUSTER_USERS[$i]}" == "cluster" ]]; then
+        CURRENT_USER_FOUND="true";
+    fi
+done
+
+if [[ $CURRENT_USER_FOUND == "false" ]];then
+    export ADMIN_CREDENTIAL=$(mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "select variable_value from global_variables where variable_name='admin-admin_credentials';")
+    mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "set admin-admin_credentials='$ADMIN_CREDENTIAL;$CLUSTER_USERNAME:$CLUSTER_PASSWORD';"
+
+
+    if [[ "$PRE_CLUSTER_USER" == "" ]]; then
+      mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "set admin-cluster_username='$CLUSTER_USERNAME';"
+    else
+      mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "set admin-cluster_username='$PRE_CLUSTER_USER;$CLUSTER_USERNAME';"
+    fi
+
+
+    export PRE_CLUSTER_PASS=$(mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "select variable_value from global_variables where variable_name='admin-cluster_password';")
+    if [[ "$PRE_CLUSTER_PASS" == "" ]]; then
+      mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "set admin-cluster_password='$CLUSTER_PASSWORD';"
+    else
+      mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "set admin-cluster_password='$PRE_CLUSTER_PASS;$CLUSTER_PASSWORD';"
+    fi
+
+
+    mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "SAVE ADMIN VARIABLES TO DISK;"
+    mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "LOAD ADMIN VARIABLES TO RUNTIME;"
+fi
