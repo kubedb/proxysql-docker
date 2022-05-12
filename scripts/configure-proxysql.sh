@@ -214,7 +214,7 @@ mysql_exec \
     $PROXYSQL_ADMIN_PASSWORD \
     127.0.0.1 \
     6032 \
-    "$cleanup_sql $hostgroups_sql $servers_sql $users_sql $queries_sql" \
+    "$hostgroups_sql $servers_sql $users_sql $queries_sql" \
     $opt
 
 log "INFO" "All done!"
@@ -251,7 +251,7 @@ proxycluster_sql=$(get_proxyservers_sql)
 log "INFO" "sql query to configure proxysql cluster
 $proxycluster_sql"
 
-if [ $DO_CLUSTER == "true" ]; then
+if [ $PROXY_CLUSTER == "true" ]; then
     mysql_exec \
         $PROXYSQL_ADMIN_USER \
         $PROXYSQL_ADMIN_PASSWORD \
