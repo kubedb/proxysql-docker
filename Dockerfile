@@ -11,7 +11,7 @@ RUN curl -fsSL -o tini https://github.com/kubedb/tini/releases/download/v0.20.0/
 
 
 
-FROM proxysql/proxysql:2.3.2-centos
+FROM {PROXYSQL_IMAGE}
 
 LABEL org.opencontainers.image.source https://github.com/kubedb/proxysql-init-docker
 
