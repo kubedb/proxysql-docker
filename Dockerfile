@@ -19,10 +19,7 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV DEBCONF_NONINTERACTIVE_SEEN true
 
 RUN set -x \
-#  && yum check-update \
   && yum install -y ca-certificates mysql
-#  && yum remove -y  ca-certificates \
-#  && rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /tmp/*
 
 COPY proxysql.cnf /etc/proxysql.cnf
 COPY scripts      scripts
