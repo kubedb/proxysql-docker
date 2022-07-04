@@ -230,6 +230,8 @@ select * from mysql_servers;
 
 "
 
+# set up all proxysql clusters
+
 IFS=',' read -ra PROXY_SERVERS <<<"$PROXY_PEERS"
 
 function get_proxyservers_sql() {
@@ -252,14 +254,11 @@ log "INFO" "sql query to configure proxysql cluster
 $proxycluster_sql"
 
 if [ $PROXY_CLUSTER == "true" ]; then
-    mysql_exec \
-        $PROXYSQL_ADMIN_USER \
-        $PROXYSQL_ADMIN_PASSWORD \
-        127.0.0.1 \
-        6032 \
-        "$proxycluster_sql" \
-        $opt
+    mysql_exec $PROXYSQL_ADMIN_USER $PROXYSQL_ADMIN_PASSWORD 127.0.0.1 6032 "$proxycluster_sql" $opt
 fi
+
+# cluster set up done
+
 
 if [[ "$LOAD_BALANCE_MODE" == "Galera" ]]; then
     verification_sql="$verification_sql
@@ -277,13 +276,7 @@ select * from mysql_users;
 select * from mysql_query_rules;
 "
 
-mysql_exec \
-    $PROXYSQL_ADMIN_USER \
-    $PROXYSQL_ADMIN_PASSWORD \
-    127.0.0.1 \
-    6032 \
-    "$verification_sql" \
-    $opt
+mysql_exec $PROXYSQL_ADMIN_USER $PROXYSQL_ADMIN_PASSWORD 127.0.0.1 6032 "$verification_sql" $opt
 
 if [ $FRONTEND_TLS_ENABLED == "true" ]; then
     mysql -uadmin -padmin -h127.0.0.1 -P6032 -NBe "
