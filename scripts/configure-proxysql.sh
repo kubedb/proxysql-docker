@@ -116,24 +116,24 @@ fi
 # Host group 20 is for requests filtered by the pattern '^SELECT'
 #   and contains all of the hosts from the peers list
 
-function get_hostgroups_sql() {
-    local sql=""
-    if [[ "$LOAD_BALANCE_MODE" == "Galera" ]]; then
-        sql="
-REPLACE INTO mysql_galera_hostgroups
-(writer_hostgroup,backup_writer_hostgroup,reader_hostgroup,offline_hostgroup,active,max_writers,writer_is_also_reader,max_transactions_behind)
-VALUES (2,4,3,1,1,1,1,100);
-"
-    else
-        sql="
-REPLACE INTO mysql_group_replication_hostgroups
-(writer_hostgroup,backup_writer_hostgroup,reader_hostgroup,offline_hostgroup,active,max_writers,writer_is_also_reader,max_transactions_behind)
-VALUES (2,4,3,1,1,1,1,0);
-"
-    fi
-
-    echo $sql
-}
+#function get_hostgroups_sql() {
+#    local sql=""
+#    if [[ "$LOAD_BALANCE_MODE" == "Galera" ]]; then
+#        sql="
+#REPLACE INTO mysql_galera_hostgroups
+#(writer_hostgroup,backup_writer_hostgroup,reader_hostgroup,offline_hostgroup,active,max_writers,writer_is_also_reader,max_transactions_behind)
+#VALUES (2,4,3,1,1,1,1,100);
+#"
+#    else
+#        sql="
+#REPLACE INTO mysql_group_replication_hostgroups
+#(writer_hostgroup,backup_writer_hostgroup,reader_hostgroup,offline_hostgroup,active,max_writers,writer_is_also_reader,max_transactions_behind)
+#VALUES (2,4,3,1,1,1,1,0);
+#"
+#    fi
+#
+#    echo $sql
+#}
 
 function get_servers_sql() {
     local sql=""
@@ -157,43 +157,44 @@ SAVE MYSQL SERVERS TO DISK;
     echo $sql
 }
 
-function get_users_sql() {
-    local sql="
-UPDATE global_variables SET variable_value='$MYSQL_PROXY_USER' WHERE variable_name='mysql-monitor_username';
-UPDATE global_variables SET variable_value='$MYSQL_PROXY_PASSWORD' WHERE variable_name='mysql-monitor_password';
+#function get_users_sql() {
+#    local sql="
+#UPDATE global_variables SET variable_value='$MYSQL_PROXY_USER' WHERE variable_name='mysql-monitor_username';
+#UPDATE global_variables SET variable_value='$MYSQL_PROXY_PASSWORD' WHERE variable_name='mysql-monitor_password';
+#
+#LOAD MYSQL VARIABLES TO RUNTIME;
+#SAVE MYSQL VARIABLES TO DISK;
+#"
+#
+#REPLACE INTO mysql_users(username, password, active, default_hostgroup, max_connections) VALUES ('root', '$MYSQL_ROOT_PASSWORD', 1, 2, 200);
+#REPLACE INTO mysql_users(username, password, active, default_hostgroup, max_connections) VALUES ('$MYSQL_PROXY_USER', '$MYSQL_PROXY_PASSWORD', 1, 2, 200);
+#
+#LOAD MYSQL USERS TO RUNTIME;
+#SAVE MYSQL USERS TO DISK;
+#
+#UPDATE mysql_users SET default_hostgroup=2;
+#
+#LOAD MYSQL USERS TO RUNTIME;
+#SAVE MYSQL USERS TO DISK;
+#"
 
-LOAD MYSQL VARIABLES TO RUNTIME;
-SAVE MYSQL VARIABLES TO DISK;
+#    echo $sql
+#}
 
-REPLACE INTO mysql_users(username, password, active, default_hostgroup, max_connections) VALUES ('root', '$MYSQL_ROOT_PASSWORD', 1, 2, 200);
-REPLACE INTO mysql_users(username, password, active, default_hostgroup, max_connections) VALUES ('$MYSQL_PROXY_USER', '$MYSQL_PROXY_PASSWORD', 1, 2, 200);
+#function get_queries_sql() {
+#    local sql="
+#REPLACE INTO mysql_query_rules(rule_id,active,match_digest,destination_hostgroup,apply) VALUES(1,1,'^SELECT.*FOR UPDATE$',2,1), (2,1,'^SELECT',3,1), (3,1,'.*',2,1);
+#LOAD MYSQL QUERY RULES TO RUNTIME;
+#SAVE MYSQL QUERY RULES TO DISK;
+#"
+#
+#    echo $sql
+#}
 
-LOAD MYSQL USERS TO RUNTIME;
-SAVE MYSQL USERS TO DISK;
-
-UPDATE mysql_users SET default_hostgroup=2;
-
-LOAD MYSQL USERS TO RUNTIME;
-SAVE MYSQL USERS TO DISK;
-"
-
-    echo $sql
-}
-
-function get_queries_sql() {
-    local sql="
-REPLACE INTO mysql_query_rules(rule_id,active,match_digest,destination_hostgroup,apply) VALUES(1,1,'^SELECT.*FOR UPDATE$',2,1), (2,1,'^SELECT',3,1), (3,1,'.*',2,1);
-LOAD MYSQL QUERY RULES TO RUNTIME;
-SAVE MYSQL QUERY RULES TO DISK;
-"
-
-    echo $sql
-}
-
-hostgroups_sql=$(get_hostgroups_sql)
+#hostgroups_sql=$(get_hostgroups_sql)
 servers_sql=$(get_servers_sql)
-users_sql=$(get_users_sql)
-queries_sql=$(get_queries_sql)
+#users_sql=$(get_users_sql)
+#queries_sql=$(get_queries_sql)
 
 log "INFO" "sql query to configure proxysql
 
