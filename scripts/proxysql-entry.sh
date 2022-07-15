@@ -23,10 +23,6 @@ function log() {
     echo "$(timestamp) [$script_name] [$log_type] $msg"
 }
 
-#if [ $FETCH_CUSTOM_CONFIG == "true" ]; then
-#echo $(cat /etc/custom-config/proxysql.cnf) >/etc/proxysql.cnf
-#fi
-
 cp /etc/custom-config/proxysql.cnf /etc/proxysql.cnf
 
 # If command has arguments, prepend proxysql
