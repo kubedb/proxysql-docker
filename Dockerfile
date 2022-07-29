@@ -24,7 +24,6 @@ RUN set -x \
   && apt-get purge -y --auto-remove ca-certificates \
   && rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /tmp/*
 
-#COPY proxysql.cnf /etc/proxysql.cnf
 COPY scripts      scripts
 COPY sql          sql
 COPY --from=0 /tini /tmp/scripts/tini
