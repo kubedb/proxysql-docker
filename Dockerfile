@@ -21,7 +21,6 @@ ENV DEBCONF_NONINTERACTIVE_SEEN true
 RUN set -x \
   && yum install -y ca-certificates mysql
 
-COPY proxysql.cnf /etc/proxysql.cnf
 COPY scripts      scripts
 COPY sql          sql
 COPY --from=0 /tini /tmp/scripts/tini
