@@ -80,13 +80,17 @@ log "INFO" "Provided peers are ${BACKEND_SERVERS[*]}"
 primary=${BACKEND_SERVERS[0]}
 
 if [[ "$LOAD_BALANCE_MODE" == "GroupReplication" ]]; then
+  while true; do
     primary=$(mysql_exec root $MYSQL_ROOT_PASSWORD $first_host 3306 \
-        "
+          "
 SELECT MEMBER_HOST FROM performance_schema.replication_group_members
                           INNER JOIN performance_schema.global_status ON (MEMBER_ID = VARIABLE_VALUE)
 WHERE VARIABLE_NAME='group_replication_primary_member';
 ")
-
+    if [[ "$primary" != "" ]]; then
+            break
+    fi
+  done
 fi
 
 log "INFO" "Current primary member of the group is $primary"
