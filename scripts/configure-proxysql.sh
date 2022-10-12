@@ -68,6 +68,7 @@ wait_for_mysql $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 330
 additional_sys_query=$(cat /sql/addition_to_sys_v5.sql)
 if [[ $MYSQL_VERSION == "8"* ]]; then
     additional_sys_query=$(cat /sql/addition_to_sys_v8.sql)
+    
 fi
 mysql_exec $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306 "$additional_sys_query" $opt
 
