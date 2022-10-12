@@ -12,7 +12,7 @@ VERSION          = $(TAG)_$(subst /,_,$(PLATFORM))
 
 DB_REGISTRY	?= proxysql
 DB_BIN		?= proxysql
-DB_TAG		?= 2.3.2-debian
+DB_TAG		?= 2.4.4-debian
 ifeq ($(ARCH),arm64)
 	DB_TAG := $(TAG)_$(ARCH)
 endif
