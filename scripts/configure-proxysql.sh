@@ -22,11 +22,6 @@ log "" "From $script_name"
 opt=" -vvv -f "
 TIMEOUT="10" # 10 sec timeout to wait for server
 
-if [[ -z "${PROXYSQL_ADMIN_USER}" ]]; then
-    export PROXYSQL_ADMIN_USER="admin"
-    export PROXYSQL_ADMIN_PASSWORD="admin"
-fi
-
 # Functions
 
 function mysql_exec() {
@@ -68,149 +63,17 @@ function wait_for_mysql() {
     fi
 }
 
-IFS=',' read -ra BACKEND_SERVERS <<<"$PEERS"
-if [[ "${#BACKEND_SERVERS[@]}" -eq 0 ]]; then
-    log "ERROR" "Backend pxc servers not found. Exiting ..."
-    exit 1
-fi
-first_host=${BACKEND_SERVERS[0]}
-
-log "INFO" "Provided peers are ${BACKEND_SERVERS[*]}"
-
-primary=${BACKEND_SERVERS[0]}
-
-if [[ "$LOAD_BALANCE_MODE" == "GroupReplication" ]]; then
-  while true; do
-    primary=$(mysql_exec root $MYSQL_ROOT_PASSWORD $first_host 3306 \
-          "
-SELECT MEMBER_HOST FROM performance_schema.replication_group_members
-                          INNER JOIN performance_schema.global_status ON (MEMBER_ID = VARIABLE_VALUE)
-WHERE VARIABLE_NAME='group_replication_primary_member';
-")
-    if [[ "$primary" != "" ]]; then
-            break
-    fi
-  done
-fi
-
-log "INFO" "Current primary member of the group is $primary"
-
-wait_for_mysql root $MYSQL_ROOT_PASSWORD $primary 3306
-
-if [ $BACKEND_TLS_ENABLED == "true" ]; then
-    mysql_exec root $MYSQL_ROOT_PASSWORD $primary 3306 "CREATE USER '$MYSQL_PROXY_USER'@'%' IDENTIFIED BY '$MYSQL_PROXY_PASSWORD' REQUIRE SSL;" $opt
-else
-    mysql_exec root $MYSQL_ROOT_PASSWORD $primary 3306 "CREATE USER '$MYSQL_PROXY_USER'@'%' IDENTIFIED BY '$MYSQL_PROXY_PASSWORD';" $opt
-fi
-
-mysql_exec root $MYSQL_ROOT_PASSWORD $primary 3306 \
-    "
-GRANT ALL PRIVILEGES ON *.* TO '$MYSQL_PROXY_USER'@'%';
-FLUSH PRIVILEGES ;
-  " \
-    $opt
-
-echo "done"
+wait_for_mysql $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306
 
 additional_sys_query=$(cat /sql/addition_to_sys_v5.sql)
 if [[ $MYSQL_VERSION == "8"* ]]; then
     additional_sys_query=$(cat /sql/addition_to_sys_v8.sql)
 fi
-mysql_exec root $MYSQL_ROOT_PASSWORD $primary 3306 "$additional_sys_query" $opt
+mysql_exec $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306 "$additional_sys_query" $opt
 
 # wait for proxysql process to run
 wait_for_mysql admin admin 127.0.0.1 6032
 
-#configure mysql servers
-function get_mysql_servers_sql() {
-    local sql=""
-    for server in "${BACKEND_SERVERS[@]}"; do
-        sql="$sql
-REPLACE INTO mysql_servers(hostgroup_id, hostname, port, weight) VALUES (2,'$server',3306,100);
-"
-    done
-
-    if [ $BACKEND_TLS_ENABLED == "true" ]; then
-        sql="$sql
-UPDATE mysql_servers SET use_ssl=1 WHERE port=3306;
-"
-    fi
-
-    sql="$sql
-LOAD MYSQL SERVERS TO RUNTIME;
-SAVE MYSQL SERVERS TO DISK;
-"
-    echo $sql
-}
-
-mysql_servers_sql=$(get_mysql_servers_sql)
-
-log "INFO" "sql query to configure proxysql
-$mysql_servers_sql
-"
-
-mysql_exec $PROXYSQL_ADMIN_USER $PROXYSQL_ADMIN_PASSWORD 127.0.0.1 6032 "$mysql_servers_sql" $opt
-
-# configure proxysql servers
-IFS=',' read -ra PROXY_SERVERS <<<"$PROXY_PEERS"
-
-function get_proxy_servers_sql() {
-    local sql=""
-    for server in "${PROXY_SERVERS[@]}"; do
-        sql="$sql
-insert into proxysql_servers(hostname,port,weight) values('$server',6032,1);
-"
-    done
-    sql="$sql
-LOAD PROXYSQL SERVERS TO RUNTIME;
-SAVE PROXYSQL SERVERS TO DISK;
-"
-    echo $sql
-}
-
-proxycluster_sql=$(get_proxy_servers_sql)
-
-log "INFO" "sql query to configure proxysql cluster
-$proxycluster_sql"
-
-if [ $PROXY_CLUSTER == "true" ]; then
-    mysql_exec $PROXYSQL_ADMIN_USER $PROXYSQL_ADMIN_PASSWORD 127.0.0.1 6032 "$proxycluster_sql" $opt
-fi
-
-# configure cluster user credential
-export PRE_CLUSTER_USER=$(mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "select variable_value from global_variables where variable_name='admin-cluster_username';")
-
-IFS=';' read -ra ALL_CLUSTER_USERS <<<"$PRE_CLUSTER_USER"
-len=${#ALL_CLUSTER_USERS[@]}
-CURRENT_USER_FOUND="false"
-for ((i = 0; i < $len; i++)); do
-    if [[ "${ALL_CLUSTER_USERS[$i]}" == "cluster" ]]; then
-        CURRENT_USER_FOUND="true"
-    fi
-done
-
-if [[ $CURRENT_USER_FOUND == "false" ]]; then
-    export ADMIN_CREDENTIAL=$(mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "select variable_value from global_variables where variable_name='admin-admin_credentials';")
-    mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "set admin-admin_credentials='$ADMIN_CREDENTIAL;$CLUSTER_USERNAME:$CLUSTER_PASSWORD';"
-
-    if [[ "$PRE_CLUSTER_USER" == "" ]]; then
-        mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "set admin-cluster_username='$CLUSTER_USERNAME';"
-    else
-        mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "set admin-cluster_username='$PRE_CLUSTER_USER;$CLUSTER_USERNAME';"
-    fi
-
-    export PRE_CLUSTER_PASS=$(mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "select variable_value from global_variables where variable_name='admin-cluster_password';")
-    if [[ "$PRE_CLUSTER_PASS" == "" ]]; then
-        mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "set admin-cluster_password='$CLUSTER_PASSWORD';"
-    else
-        mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "set admin-cluster_password='$PRE_CLUSTER_PASS;$CLUSTER_PASSWORD';"
-    fi
-
-    mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "SAVE ADMIN VARIABLES TO DISK;"
-    mysql -uadmin -padmin -h127.0.0.1 -P6032 -Nbe "LOAD ADMIN VARIABLES TO RUNTIME;"
-fi
-
-log "INFO" "SET UP COMPLETED"
 log "INFO" "CURRENT CONFIGURATION"
 
 configuration_sql="
