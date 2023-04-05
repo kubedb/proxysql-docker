@@ -1,6 +1,6 @@
 SHELL=/bin/bash -o pipefail
 
-REGISTRY   ?= kubedb
+REGISTRY   ?= ghcr.io/kubedb
 BIN        ?= proxysql
 IMAGE      := $(REGISTRY)/$(BIN)
 TAG        ?= $(shell git describe --exact-match --abbrev=0 2>/dev/null || echo "")
@@ -63,7 +63,7 @@ release:
 
 .PHONY: version
 version:
-	@echo ::set-output name=version::$(VERSION)
+	@echo version=$(VERSION)
 
 .PHONY: fmt
 fmt:
