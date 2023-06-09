@@ -23,15 +23,13 @@ function log() {
     echo "$(timestamp) [$script_name] [$log_type] $msg"
 }
 
-cp /etc/custom-config/proxysql.cnf /etc/proxysql.cnf
-
 # If command has arguments, prepend proxysql
 if [ "${1:0:1}" = '-' ]; then
     CMDARG="$@"
 fi
 
 # Start ProxySQL with PID 1
-exec proxysql -f $CMDARG &
+exec proxysql -c /etc/custom-config/proxysql.cnf -f $CMDARG &
 pid=$!
 
 log "INFO" "Configuring proxysql ..."
