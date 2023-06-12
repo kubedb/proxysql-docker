@@ -27,3 +27,5 @@ RUN set -x \
 COPY scripts      scripts
 COPY sql          sql
 COPY --from=0 /tini /tmp/scripts/tini
+
+USER 999
