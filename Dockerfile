@@ -25,4 +25,6 @@ COPY scripts      scripts
 COPY sql          sql
 COPY --from=0 /tini /tmp/scripts/tini
 
+RUN chown -R 998:996 /var/lib/proxysql
+
 USER 998:996
