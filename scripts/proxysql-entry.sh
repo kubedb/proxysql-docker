@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# use the current scrip name while putting log
+# Grab the script name for logging
 script_name=${0##*/}
 
 # pid stores the process id of the proxysql process
@@ -28,12 +28,16 @@ if [ "${1:0:1}" = '-' ]; then
     CMDARG="$@"
 fi
 
+
+log "INFO" "Starting ProxySQL with configuration....."
+nl -ba /etc/custom-config/proxysql.cnf
+
 # Start ProxySQL with PID 1
 exec proxysql -c /etc/custom-config/proxysql.cnf -f $CMDARG &
 pid=$!
 
-log "INFO" "Configuring proxysql ..."
+log "INFO" "Running post-startup configuration script..."
 /scripts/configure-proxysql.sh
 
-log "INFO" "Waiting for proxysql ..."
+log "INFO" "Waiting for ProxySQL (pid=$pid)..."
 wait $pid
