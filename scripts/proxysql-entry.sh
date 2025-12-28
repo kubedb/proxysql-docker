@@ -28,7 +28,6 @@ if [ "${1:0:1}" = '-' ]; then
     CMDARG="$@"
 fi
 
-
 log "INFO" "Starting ProxySQL with configuration....."
 nl -ba /etc/custom-config/proxysql.cnf
 

@@ -7,7 +7,6 @@ script_name=${0##*/}
 # LOAD_BALANCE_MODE - value is either "Galera" or "GroupReplication"
 # PROXYSQL_VERSION - e.g., "2.7.3-debian", "2.3.2-debian", etc.
 
-
 function timestamp() {
     date +"%Y/%m/%d %T"
 }
@@ -21,8 +20,8 @@ function log() {
 log "" "From $script_name"
 
 # Configs
-opt=" -vvv -f "  # Verbose and force for mysql exec on schema changes
-TIMEOUT="10" # 10 sec timeout to wait for server
+opt=" -vvv -f " # Verbose and force for mysql exec on schema changes
+TIMEOUT="10"    # 10 sec timeout to wait for server
 
 # Functions
 
@@ -99,11 +98,6 @@ version_ge() {
     fi
 }
 
-
-
-
-
-
 # --- Main Script Logic ---
 
 wait_for_mysql $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306
@@ -119,7 +113,6 @@ mysql_exec $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306 "$
 
 # wait for proxysql process to run and be accessible
 wait_for_mysql admin admin 127.0.0.1 6032
-
 
 # Set default authentication plugin based on PROXYSQL_VERSION
 if [ -z "$PROXYSQL_VERSION" ]; then
@@ -138,7 +131,6 @@ else
         log "INFO" "ProxySQL version is $PROXYSQL_VERSION (< 2.6.0). Not changing mysql-default_authentication_plugin."
     fi
 fi
-
 
 log "INFO" "SHOWING PROXYSQL RUNTIME CONFIGURATION"
 
@@ -160,6 +152,5 @@ select * from runtime_proxysql_servers;
 "
 
 mysql -uadmin -padmin -h127.0.0.1 -P6032 -vvve "$configuration_sql"
-
 
 log "INFO" "Configuration script finished."
