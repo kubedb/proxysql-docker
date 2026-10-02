@@ -108,14 +108,19 @@ version_ge() {
 
 wait_for_mysql $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306
 
-additional_sys_query=$(cat /sql/addition_to_sys_v5.sql)
-if [[ $MYSQL_VERSION == "8"* || $MYSQL_VERSION == "9"* ]]; then
-    log "INFO" "Applying MySQL 8+ sys schema additions..."
-    additional_sys_query=$(cat /sql/addition_to_sys_v8.sql)
+# @@aurora_version exists only on AWS Aurora; the sys additions are Group Replication helpers
+if mysql_exec $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306 "select @@aurora_version;" >/dev/null 2>&1; then
+    log "INFO" "AWS Aurora backend detected. Skipping sys schema additions."
 else
-    log "INFO" "Applying MySQL 5.x sys schema additions..."
+    additional_sys_query=$(cat /sql/addition_to_sys_v5.sql)
+    if [[ $MYSQL_VERSION == "8"* || $MYSQL_VERSION == "9"* ]]; then
+        log "INFO" "Applying MySQL 8+ sys schema additions..."
+        additional_sys_query=$(cat /sql/addition_to_sys_v8.sql)
+    else
+        log "INFO" "Applying MySQL 5.x sys schema additions..."
+    fi
+    mysql_exec $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306 "$additional_sys_query" $opt
 fi
-mysql_exec $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306 "$additional_sys_query" $opt
 
 # wait for proxysql process to run and be accessible
 wait_for_mysql admin admin 127.0.0.1 6032
