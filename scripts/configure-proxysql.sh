@@ -65,11 +65,16 @@ function wait_for_mysql() {
 
 wait_for_mysql $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306
 
-additional_sys_query=$(cat /sql/addition_to_sys_v5.sql)
-if [[ $MYSQL_VERSION == "8"* ]]; then
-    additional_sys_query=$(cat /sql/addition_to_sys_v8.sql)
+# @@aurora_version exists only on AWS Aurora; the sys additions are Group Replication helpers
+if mysql_exec $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306 "select @@aurora_version;" >/dev/null 2>&1; then
+    log "INFO" "AWS Aurora backend detected. Skipping sys schema additions."
+else
+    additional_sys_query=$(cat /sql/addition_to_sys_v5.sql)
+    if [[ $MYSQL_VERSION == "8"* ]]; then
+        additional_sys_query=$(cat /sql/addition_to_sys_v8.sql)
+    fi
+    mysql_exec $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306 "$additional_sys_query" $opt
 fi
-mysql_exec $BACKEND_AUTH_USERNAME $BACKEND_AUTH_PASSWORD $BACKEND_SERVER 3306 "$additional_sys_query" $opt
 
 # wait for proxysql process to run
 wait_for_mysql admin admin 127.0.0.1 6032
